@@ -1,104 +1,155 @@
-const input = document.getElementById('input');
-const btn = document.getElementById('addBtn');
-const list = document.getElementById('todoList');
+const input = document.getElementById("input");
+const btn = document.getElementById("addBtn");
+const list = document.getElementById("todoList");
 
-/* ===== LocalStorage Helpers ===== */
+/* ===== LocalStorage ===== */
 function getTasks() {
-  return JSON.parse(localStorage.getItem('tasks')) || [];
+  return JSON.parse(localStorage.getItem("tasks")) || [];
 }
 
 function saveTasks(tasks) {
-  localStorage.setItem('tasks', JSON.stringify(tasks));
+  localStorage.setItem("tasks", JSON.stringify(tasks));
 }
 
-/* ===== Add Task ===== */
-function addTask(task, completed = false, save = true) {
-  if (task.trim() === '') return;
+/* ===== Create Task Element ===== */
+function createTaskElement(task) {
+  const li = document.createElement("li");
+  li.dataset.id = task.id;
 
-  const li = document.createElement('li');
-  li.className =
-    "flex items-center justify-between bg-white text-black p-4 mb-2 rounded-lg shadow text-xl";
+  li.className = `
+    flex flex-col sm:flex-row
+    sm:items-center sm:justify-between
+    gap-3
+    p-3 sm:p-4
+    rounded-lg shadow
+    bg-white text-black
+    transform transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+    opacity-0 scale-95 translate-y-2
+  `;
 
   li.innerHTML = `
-    <span class="task-text">${task}</span>
-    <div class="flex items-center gap-3">
-      <button class="deleteBtn bg-red-600 text-white p-2 rounded-lg">Delete</button>
-      <input type="checkbox" class="chek">
-      <button class="editTask bg-yellow-500 text-black p-2 rounded-lg">Edit</button>
+    <span class="task-text text-base sm:text-lg break-words">
+      ${task.text}
+    </span>
+
+    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
+      <button class="deleteBtn bg-red-600 text-white px-3 py-1 rounded-lg text-sm sm:text-base">
+        Delete
+      </button>
+
+      <input type="checkbox" class="check w-5 h-5 cursor-pointer">
+
+      <button class="editBtn bg-yellow-400 text-black px-3 py-1 rounded-lg text-sm sm:text-base">
+        Edit
+      </button>
     </div>
   `;
 
-  const taskText = li.querySelector('.task-text');
-  const checkbox = li.querySelector('.chek');
-  const deleteBtn = li.querySelector('.deleteBtn');
-  const editBtn = li.querySelector('.editTask');
+  const taskText = li.querySelector(".task-text");
+  const checkbox = li.querySelector(".check");
+  const deleteBtn = li.querySelector(".deleteBtn");
+  const editBtn = li.querySelector(".editBtn");
 
-  checkbox.checked = completed;
-  if (completed) {
-    taskText.classList.add('line-through', 'bg-gray-400');
+  /* ===== Initial Completed State ===== */
+  checkbox.checked = task.completed;
+  if (task.completed) {
+    li.classList.replace("bg-white", "bg-slate-200");
+    taskText.classList.add("line-through", "text-gray-500");
   }
 
   /* ===== Checkbox ===== */
-  checkbox.addEventListener('change', () => {
-    let tasks = getTasks();
-    const index = tasks.findIndex(t => t.text === taskText.textContent);
+  checkbox.addEventListener("change", () => {
+    const tasks = getTasks();
+    const index = tasks.findIndex(t => t.id === task.id);
+    if (index === -1) return;
+
     tasks[index].completed = checkbox.checked;
     saveTasks(tasks);
 
-    taskText.classList.toggle('line-through');
-    taskText.classList.toggle('bg-gray-400');
+    li.classList.toggle("bg-white");
+    li.classList.toggle("bg-slate-200");
+
+    taskText.classList.toggle("line-through");
+    taskText.classList.toggle("text-gray-500");
+
+    li.classList.add("scale-105");
+    setTimeout(() => li.classList.remove("scale-105"), 150);
   });
 
   /* ===== Delete ===== */
-  deleteBtn.addEventListener('click', () => {
+  deleteBtn.addEventListener("click", () => {
     let tasks = getTasks();
-    tasks = tasks.filter(t => t.text !== taskText.textContent);
+    tasks = tasks.filter(t => t.id !== task.id);
     saveTasks(tasks);
-    li.remove();
+
+    li.classList.add(
+      "opacity-0",
+      "scale-90",
+      "-translate-x-6",
+      "blur-sm"
+    );
+
+    setTimeout(() => li.remove(), 350);
   });
 
   /* ===== Edit ===== */
-  editBtn.addEventListener('click', () => {
-    const newTask = prompt('Edit your task:', taskText.textContent);
-    if (!newTask || newTask.trim() === '') return;
+  editBtn.addEventListener("click", () => {
+    const newText = prompt("Edit your task:", task.text);
+    if (!newText || newText.trim() === "") return;
 
-    let tasks = getTasks();
-    const index = tasks.findIndex(t => t.text === taskText.textContent);
-    tasks[index].text = newTask;
+    const tasks = getTasks();
+    const index = tasks.findIndex(t => t.id === task.id);
+    if (index === -1) return;
+
+    tasks[index].text = newText;
     saveTasks(tasks);
 
-    taskText.textContent = newTask;
+    task.text = newText;
+    taskText.textContent = newText;
   });
 
   list.appendChild(li);
 
-  if (save) {
-    const tasks = getTasks();
-    tasks.push({ text: task, completed: false });
-    saveTasks(tasks);
-  }
+  /* ===== Animate In ===== */
+  requestAnimationFrame(() => {
+    li.classList.remove("opacity-0", "scale-95", "translate-y-2");
+    li.classList.add("opacity-100", "scale-100", "translate-y-0");
+  });
+}
 
-  input.value = '';
+/* ===== Add Task ===== */
+function addTask() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  const task = {
+    id: Date.now(),
+    text,
+    completed: false
+  };
+
+  const tasks = getTasks();
+  tasks.push(task);
+  saveTasks(tasks);
+
+  createTaskElement(task);
+  input.value = "";
 }
 
 /* ===== Events ===== */
-btn.addEventListener('click', () => {
-  addTask(input.value);
+btn.addEventListener("click", addTask);
+
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter") addTask();
 });
 
-input.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    addTask(input.value);
-  }
-});
-
-/* ===== Load From LocalStorage ===== */
-window.addEventListener('DOMContentLoaded', () => {
+/* ===== Load ===== */
+window.addEventListener("DOMContentLoaded", () => {
   const tasks = getTasks();
-  tasks.forEach(task => addTask(task.text, task.completed, false));
+  tasks.forEach(task => createTaskElement(task));
 });
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js')
-    .then(() => console.log('Service Worker Registered'));
+/* ===== Service Worker ===== */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
 }
